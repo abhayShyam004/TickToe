@@ -28,8 +28,8 @@
             <a href="/" class="nav-item-shell {% if request.path == '/' %}active{% endif %}">HOME</a>
             <a href="/tictactoe/" class="nav-item-shell {% if '/tictactoe/' in request.path %}active{% endif %}">PLAY</a>
             <a href="#" class="nav-item-shell">PUZZLES</a>
-            <a href="#" class="nav-item-shell">LEADERBOARD</a>
-            <a href="#" class="nav-item-shell">PROFILE</a>
+            <a href="{% url 'game_core:leaderboard' %}" class="nav-item-shell {% if '/leaderboard/' in request.path %}active{% endif %}">LEADERBOARD</a>
+            <a href="{% if user.is_authenticated %}{% url 'game_core:profile' user.username %}{% else %}#{% endif %}" class="nav-item-shell {% if '/profile/' in request.path %}active{% endif %}">PROFILE</a>
         </nav>
         <main class="main-content">
             {% block content %}{% endblock %}

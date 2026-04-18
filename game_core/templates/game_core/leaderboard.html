@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Leaderboard | Neo-Toe{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 40px auto;">
+    <h1 style="font-size: 3.5rem; text-shadow: 4px 4px 0px var(--secondary);">GLOBAL LEADERBOARD</h1>
+    
+    <div class="mode-tabs" style="display: flex; gap: 12px; margin-bottom: 32px;">
+        <div class="nav-item-shell active" style="background: var(--primary); color: white; cursor: pointer;">3x3 TOP 10</div>
+    </div>
+
+    <div class="leaderboard-list" style="display: flex; flex-direction: column; gap: 16px;">
+        {% for profile in top_3x3 %}
+        <a href="{% url 'game_core:profile' profile.user.username %}" style="text-decoration: none; color: inherit;">
+            <div style="display: flex; justify-content: space-between; align-items: center; background: white; border: var(--border); padding: 20px 32px; box-shadow: 6px 6px 0px var(--text); transition: all 0.1s; font-weight: 900; font-size: 1.5rem;" 
+                 onmouseover="this.style.transform='translate(-2px, -2px)'; this.style.boxShadow='8px 8px 0px var(--text)'" 
+                 onmouseout="this.style.transform='none'; this.style.boxShadow='6px 6px 0px var(--text)'">
+                <span>#{{ forloop.counter }} | {{ profile.user.username|upper }}</span>
+                <span style="color: var(--primary);">{{ profile.rating_3x3 }} ELO</span>
+            </div>
+        </a>
+        {% empty %}
+        <p style="font-weight: 900; font-size: 1.2rem;">No ranked players yet. Be the first!</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
