@@ -1,4 +1,6 @@
+import uuid
 from django.db import models
+from django.contrib.auth.models import User
 
 class Run(models.Model):
     player_hp = models.IntegerField(default=20)
@@ -11,7 +13,12 @@ class Encounter(models.Model):
     ai_type = models.CharField(max_length=20)
 
 class Game(models.Model):
-    board = models.CharField(max_length=9, default='_________')
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, null=True, unique=True)
+    board = models.CharField(max_length=25, default='_________')
+    size = models.IntegerField(default=3)
+    win_condition = models.IntegerField(default=3)
+    player_x = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='games_as_x')
+    player_o = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='games_as_o')
     current_player = models.CharField(max_length=1, default='X')
     status = models.CharField(max_length=10, default='playing')
     game_type = models.CharField(max_length=20, default='two_player_offline')

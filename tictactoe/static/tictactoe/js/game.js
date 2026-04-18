@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     let currentGameId = null;
+    let currentGameUuid = null;
     let currentGameData = null;
+    let gameSocket = null;
 
     const gameIdSpan = document.getElementById('game-id');
     const boardDiv = document.getElementById('board');
@@ -9,20 +11,39 @@ document.addEventListener('DOMContentLoaded', function() {
     const difficultyPanel = document.getElementById('difficulty-panel');
     const difficultySelect = document.getElementById('difficulty-select');
     const resetBtn = document.getElementById('reset-btn');
+    const siteWrapper = document.querySelector('.site-wrapper');
+    const combatHud = document.getElementById('combat-hud');
+    const playerHpBar = document.getElementById('player-hp-bar');
+    const enemyHpBar = document.getElementById('enemy-hp-bar');
+    const playerHpText = document.getElementById('player-hp-text');
+    const enemyHpText = document.getElementById('enemy-hp-text');
 
     // Show/hide difficulty based on mode
     gameTypeSelect.addEventListener('change', function() {
-        if (this.value === 'single_player_ai' || this.value === 'roguelike') {
-            difficultyPanel.classList.remove('hidden');
-        } else {
-            difficultyPanel.classList.add('hidden');
-        }
+        difficultyPanel.style.display = (this.value === 'single_player_ai' || this.value === 'roguelike') ? 'flex' : 'none';
     });
 
-    // Initialize board cells
-    function initBoard() {
+    function connectWebSocket(uuid) {
+        if (gameSocket) gameSocket.close();
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        gameSocket = new WebSocket(`${protocol}${window.location.host}/ws/play/${uuid}/`);
+        
+        gameSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            if (data.error) showMessage(data.error, true);
+            else updateGameState(data);
+        };
+        
+        gameSocket.onclose = function(e) { console.log('Socket closed'); };
+    }
+
+    function initBoard(size = 3) {
         boardDiv.innerHTML = '';
-        for (let i = 0; i < 9; i++) {
+        boardDiv.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+        boardDiv.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+        boardDiv.style.width = `${size * 116 - 16}px`; // Adjust width based on cells + gaps
+        
+        for (let i = 0; i < size * size; i++) {
             const cell = document.createElement('div');
             cell.classList.add('cell');
             cell.dataset.index = i;
@@ -31,146 +52,82 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Handle cell click
     function handleCellClick(e) {
-        if (!currentGameId || !currentGameData) return;
-
-        const cell = e.target;
-        const index = parseInt(cell.dataset.index);
-
-        // Prevent clicking if game is over
-        if (currentGameData.status !== 'playing') {
-            return;
+        if (!currentGameData || currentGameData.status !== 'playing') return;
+        const index = parseInt(e.target.dataset.index);
+        
+        if (currentGameData.game_type === 'play_vs_friend' && gameSocket && gameSocket.readyState === WebSocket.OPEN) {
+            gameSocket.send(JSON.stringify({ action: 'move', position: index }));
+        } else {
+            fetch(`/tictactoe/${currentGameId}/move/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ position: index })
+            })
+            .then(res => res.json())
+            .then(data => data.error ? showMessage(data.error, true) : updateGameState(data))
+            .catch(err => showMessage('Error: ' + err, true));
         }
-
-        // Check if cell is already taken
-        if (currentGameData.board[index] !== '_') {
-            showMessage('Invalid move! Cell already taken.', true);
-            return;
-        }
-
-        // Make move via AJAX
-        fetch(`/tictactoe/${currentGameId}/move/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({ position: index })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                showMessage(data.error, true);
-                return;
-            }
-            updateGameState(data);
-        })
-        .catch(error => {
-            showMessage('Error making move: ' + error, true);
-        });
     }
 
-    // Helper to update HP bars
-    function updateHP(side, current, max) {
-        const bar = document.getElementById(`${side}-hp-bar`);
-        const text = document.getElementById(`${side}-hp-text`);
-        if (!bar || !text) return;
-        const percentage = Math.max(0, (current / max) * 100);
-        bar.style.width = `${percentage}%`;
-        text.textContent = `${current}/${max}`;
-    }
-
-    // Update game state from server response
     function updateGameState(data) {
+        if (!currentGameData || data.size !== currentGameData.size) initBoard(data.size);
         currentGameData = data;
-        gameIdSpan.textContent = currentGameData.id;
+        currentGameId = data.id;
+        currentGameUuid = data.uuid;
+        gameIdSpan.textContent = data.id;
 
-        // Parse hazards
-        let hazards = [];
-        try {
-            hazards = JSON.parse(currentGameData.hazards || '[]');
-        } catch (e) {
-            console.error('Failed to parse hazards', e);
-        }
+        const cells = boardDiv.querySelectorAll('.cell');
+        cells.forEach((cell, i) => {
+            const val = data.board[i];
+            cell.textContent = val === '_' ? '' : val;
+            if (val !== '_') {
+                cell.classList.add('taken');
+                cell.setAttribute('data-value', val);
+            } else {
+                cell.classList.remove('taken');
+                cell.removeAttribute('data-value');
+            }
+            // Mark hazards
+            if (data.hazards && data.hazards.includes(i)) {
+                cell.classList.add('hazard');
+                cell.textContent = '!';
+            }
+        });
 
-        // Show combat HUD if in roguelike mode
-        const combatHud = document.getElementById('combat-hud');
-        if (currentGameData.game_type === 'roguelike') {
+        // HP and HUD
+        if (data.game_type === 'roguelike') {
             combatHud.classList.remove('hidden');
-            updateHP('player', currentGameData.player_hp, 20); // Default max is 20
-            updateHP('enemy', currentGameData.enemy_hp, 20); // Default max is 20
+            updateHP(playerHpBar, playerHpText, data.player_hp);
+            updateHP(enemyHpBar, enemyHpText, data.enemy_hp);
         } else {
             combatHud.classList.add('hidden');
         }
 
-        // Update board cells
-        const cells = boardDiv.querySelectorAll('.cell');
-        cells.forEach((cell, index) => {
-            const cellValue = currentGameData.board[index];
-            cell.textContent = cellValue === '_' ? '' : cellValue;
-            
-            // Clear classes
-            cell.classList.remove('taken', 'hazard');
-            cell.removeAttribute('data-value');
-
-            if (cellValue !== '_') {
-                cell.classList.add('taken');
-                cell.setAttribute('data-value', cellValue);
-            } else if (hazards.includes(index)) {
-                cell.classList.add('hazard');
-                cell.classList.add('taken');
-                cell.textContent = '!'; // Indicator for hazards
-            }
-        });
-
-        // Update message based on game status
-        let message = '';
-        const siteWrapper = document.querySelector('.site-wrapper');
-        
-        // Remove previous animation
+        // Status and Animations
         siteWrapper.classList.remove('win-animation');
-
-        switch (currentGameData.status) {
-            case 'playing':
-                message = `Player ${currentGameData.current_player}'s turn`;
-                break;
-            case 'X_wins':
-                message = 'Player X wins!';
-                siteWrapper.classList.add('win-animation');
-                scheduleRestart();
-                break;
-            case 'O_wins':
-                message = 'Player O wins!';
-                siteWrapper.classList.add('win-animation');
-                scheduleRestart();
-                break;
-            case 'draw':
-                message = "It's a draw!";
-                siteWrapper.classList.add('win-animation');
-                scheduleRestart();
-                break;
-            default:
-                message = `Game status: ${currentGameData.status}`;
-                break;
+        let msg = data.status === 'playing' ? `Player ${data.current_player}'s turn` : 
+                  data.status === 'draw' ? "It's a draw!" : `Player ${data.status[0]} Wins!`;
+        
+        if (data.status !== 'playing') {
+            siteWrapper.classList.add('win-animation');
+            setTimeout(() => newGame(gameTypeSelect.value, difficultySelect.value), 3000);
         }
-        showMessage(message, false);
+        showMessage(msg, false);
     }
 
-    // Auto-restart helper
-    function scheduleRestart() {
-        setTimeout(() => {
-            newGame(gameTypeSelect.value, difficultySelect.value);
-        }, 3000);
+    function updateHP(bar, text, val) {
+        const pct = (val / 20) * 100;
+        bar.style.width = `${Math.max(0, pct)}%`;
+        text.textContent = `${val}/20`;
     }
 
-    // Show message in UI
     function showMessage(text, isError) {
         messageDiv.textContent = text;
-        messageDiv.style.color = isError ? 'red' : 'black';
+        messageDiv.style.borderStyle = isError ? 'solid' : 'dashed';
+        messageDiv.style.color = isError ? '#DC2626' : 'inherit';
     }
 
-    // Get CSRF token from cookie
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -186,75 +143,30 @@ document.addEventListener('DOMContentLoaded', function() {
         return cookieValue;
     }
 
-    // Create a new game
-    function newGame(gameType = 'two_player_offline', difficulty = 'hard') {
+    function newGame(type, diff) {
         fetch('/tictactoe/create/', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({ 
-                game_type: gameType,
-                difficulty: difficulty
-            })
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ game_type: type, difficulty: diff })
         })
-        .then(response => response.json())
+        .then(res => res.json())
         .then(data => {
-            if (data.error) {
-                showMessage(data.error, true);
-                return;
-            }
-            currentGameId = data.id;
-            currentGameData = data;
-            
-            // Sync UI with loaded game type/difficulty
-            gameTypeSelect.value = data.game_type;
-            if (data.game_type === 'single_player_ai' || data.game_type === 'roguelike') {
-                difficultyPanel.classList.remove('hidden');
-                difficultySelect.value = data.difficulty;
-            } else {
-                difficultyPanel.classList.add('hidden');
-            }
-            
+            if (data.error) return showMessage(data.error, true);
+            if (type === 'play_vs_friend') connectWebSocket(data.uuid);
             updateGameState(data);
-        })
-        .catch(error => {
-            showMessage('Error creating game: ' + error, true);
         });
     }
 
-    // Reset button handler
-    resetBtn.addEventListener('click', function() {
-        newGame(gameTypeSelect.value, difficultySelect.value);
-    });
-
-    // Initialize the board
-    initBoard();
-
-    // Start initial game
+    resetBtn.addEventListener('click', () => newGame(gameTypeSelect.value, difficultySelect.value));
+    
+    // Initial Load
     const initialId = boardDiv.dataset.initialId;
     if (initialId) {
         fetch(`/tictactoe/${initialId}/`)
-        .then(response => response.json())
+        .then(res => res.json())
         .then(data => {
-            if (data.error) {
-                newGame(gameTypeSelect.value, difficultySelect.value);
-            } else {
-                currentGameId = data.id;
-                currentGameData = data;
-                
-                // Sync UI with loaded game type/difficulty
-                gameTypeSelect.value = data.game_type;
-                if (data.game_type === 'single_player_ai' || data.game_type === 'roguelike') {
-                    difficultyPanel.classList.remove('hidden');
-                    difficultySelect.value = data.difficulty;
-                } else {
-                    difficultyPanel.classList.add('hidden');
-                }
-                
-                updateGameState(data);
-            }
+            if (data.game_type === 'play_vs_friend') connectWebSocket(data.uuid);
+            updateGameState(data);
         })
         .catch(() => newGame(gameTypeSelect.value, difficultySelect.value));
     } else {

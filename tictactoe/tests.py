@@ -1,6 +1,8 @@
 from django.test import TestCase, Client
+from django.contrib.auth.models import User
 from .models import Game, Run, Encounter
 import json
+import uuid
 
 class RoguelikeModelsTest(TestCase):
     def test_run_creation(self):
@@ -19,6 +21,24 @@ class RoguelikeModelsTest(TestCase):
             hazards='[1,1]' # JSON string representing blocked cells
         )
         self.assertEqual(game.player_hp, 20)
+
+class GameCustomizationTest(TestCase):
+    def test_game_customization_fields(self):
+        user_x = User.objects.create_user(username='player_x', password='password123')
+        user_o = User.objects.create_user(username='player_o', password='password123')
+        game = Game.objects.create(
+            board='_' * 25,
+            size=5,
+            win_condition=4,
+            player_x=user_x,
+            player_o=user_o
+        )
+        self.assertIsInstance(game.uuid, uuid.UUID)
+        self.assertEqual(game.size, 5)
+        self.assertEqual(game.win_condition, 4)
+        self.assertEqual(game.player_x, user_x)
+        self.assertEqual(game.player_o, user_o)
+        self.assertEqual(len(game.board), 25)
 
 class TicTacToeAiTest(TestCase):
     def setUp(self):
