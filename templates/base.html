@@ -1,0 +1,39 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Neo-Toe{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'tictactoe/css/game.css' %}">
+    <style>
+        .app-shell { display: flex; min-height: 100vh; }
+        .sidebar { width: 240px; border-right: var(--border); background: white; padding: 24px; box-shadow: var(--shadow); z-index: 100; }
+        .main-content { flex: 1; padding: 40px; background: var(--bg); position: relative; }
+        .nav-item-shell { display: flex; align-items: center; gap: 12px; padding: 12px; border: var(--border); margin-bottom: 16px; font-weight: 900; text-decoration: none; color: var(--text); box-shadow: 4px 4px 0px var(--text); transition: all 0.1s; }
+        .nav-item-shell:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--text); }
+        .nav-item-shell.active { background: var(--primary); color: white; }
+        
+        @media (max-width: 768px) {
+            .app-shell { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-top: var(--border); order: 2; position: fixed; bottom: 0; left: 0; display: flex; justify-content: space-around; padding: 12px; box-shadow: 0px -4px 0px var(--text); }
+            .main-content { order: 1; margin-bottom: 80px; padding: 20px; }
+            .nav-item-shell { margin-bottom: 0; padding: 8px; font-size: 0.75rem; flex-direction: column; gap: 4px; box-shadow: 2px 2px 0px var(--text); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <nav class="sidebar">
+            <a href="/" class="nav-item-shell {% if request.path == '/' %}active{% endif %}">HOME</a>
+            <a href="/tictactoe/" class="nav-item-shell {% if '/tictactoe/' in request.path %}active{% endif %}">PLAY</a>
+            <a href="#" class="nav-item-shell">PUZZLES</a>
+            <a href="#" class="nav-item-shell">LEADERBOARD</a>
+            <a href="#" class="nav-item-shell">PROFILE</a>
+        </nav>
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

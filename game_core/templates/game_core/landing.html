@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}NEO-TOE | The Pro Platform{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1 class="hero-title">NEO-TOE</h1>
+    <p class="hero-subtitle">THE PROFESSIONAL TIC-TAC-TOE PLATFORM</p>
+    
+    <div class="cta-panel">
+        {% if user.is_authenticated %}
+            <a href="/tictactoe/" class="nav-item-shell btn-primary">GO TO DASHBOARD</a>
+        {% else %}
+            <a href="/tictactoe/" class="nav-item-shell btn-primary">PLAY NOW</a>
+            <a href="#" class="nav-item-shell btn-secondary">SIGN UP / LOG IN</a>
+            <a href="#" class="nav-item-shell btn-social">CONTINUE WITH GOOGLE</a>
+        {% endif %}
+    </div>
+</div>
+
+<marquee class="ticker" scrollamount="12">
+    LIVE GAMES: 128 &nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp; 
+    TOTAL GAMES: 1,452 &nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp; 
+    ACTIVE PLAYERS: 84 &nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp; 
+    TOP RANK: @PRO_TOE (2450 ELO)
+</marquee>
+{% endblock %}

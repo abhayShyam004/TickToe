@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}PLAY | Neo-Toe{% endblock %}
+
+{% block content %}
+<div class="site-wrapper">
+    <div class="top-bar">
+        <div class="game-info">
+            <span class="label">GAME ID</span>
+            <span id="game-id" class="value">-</span>
+        </div>
+        <div class="mode-selector">
+            <label for="game-type-select">MODE</label>
+            <div class="select-wrapper">
+                <select id="game-type-select">
+                    <option value="two_player_offline">Local Multi</option>
+                    <option value="single_player_ai">VS Computer</option>
+                    <option value="roguelike">ROGUELIKE</option>
+                </select>
+            </div>
+        </div>
+        <div class="difficulty-selector" id="difficulty-panel">
+            <label for="difficulty-select">LEVEL</label>
+            <div class="select-wrapper">
+                <select id="difficulty-select">
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard" selected>Hard</option>
+                </select>
+            </div>
+        </div>
+        <button id="reset-btn">RESTART</button>
+    </div>
+
+    <div class="container">
+        <h1>TIC-TAC-TOE</h1>
+        
+        <div id="combat-hud" class="hidden">
+            <div class="hp-container player">
+                <div class="hp-label">PLAYER HP</div>
+                <div class="hp-bar-outer">
+                    <div id="player-hp-bar" class="hp-bar-inner" style="width: 100%;"></div>
+                </div>
+                <div id="player-hp-text" class="hp-text">20/20</div>
+            </div>
+            <div class="hp-container enemy">
+                <div class="hp-label">BOSS HP</div>
+                <div class="hp-bar-outer">
+                    <div id="enemy-hp-bar" class="hp-bar-inner" style="width: 100%;"></div>
+                </div>
+                <div id="enemy-hp-text" class="hp-text">20/20</div>
+            </div>
+        </div>
+
+        <div id="board" data-initial-id="{{ game_id|default:'' }}"></div>
+        <div id="message"></div>
+    </div>
+</div>
+
+<script src="{% static 'tictactoe/js/game.js' %}"></script>
+{% endblock %}
